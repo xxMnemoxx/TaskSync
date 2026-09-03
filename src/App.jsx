@@ -1,38 +1,154 @@
 import { useState, useEffect } from 'react';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+} from 'react-router-dom';
+
 import { supabase } from './data/supabaseClient';
+
 import Login from './components/Login';
-import TeamSetup from './components/TeamSetup';
+import SignUp from './components/SignUp';
 import MainApp from './components/MainApp';
+import CalendarView from './components/CalendarView';
+import TodoView from './components/TodoView';
+import TeamMembers from './components/TeamMembers';
+
 import './App.css';
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
-  const [currentTeam, setCurrentTeam] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       setCurrentUser(session?.user ?? null);
       setLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCurrentUser(session?.user ?? null);
-    });
+    // Listen for login/logout changes
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setCurrentUser(session?.user ?? null);
+      }
+    );
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
-  if (loading) return <p>Loading...</p>;
-  if (!currentUser) return <Login onLogin={setCurrentUser} />;
-  if (!currentTeam) return <TeamSetup currentUser={currentUser} onTeamReady={setCurrentTeam} />;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    );
+  }
 
   return (
-    <MainApp
-      currentUser={currentUser}
-      team={currentTeam}
-      onSignOut={() => setCurrentTeam(null)}
-    />
+    <BrowserRouter>
+      <Routes>
+
+        {/* LOGIN */}
+        <Route
+          path="/login"
+          element={
+            currentUser ? (
+              <Navigate to="/calendar" replace />
+            ) : (
+              <div className="min-h-screen w-full flex items-center justify-center bg-gray-100 px-4 py-8">
+                <Login
+                  onLogin={setCurrentUser}
+                />
+              </div>
+            )
+          }
+        />
+
+        {/* SIGN UP */}
+        <Route
+          path="/signup"
+          element={
+            currentUser ? (
+              <Navigate to="/calendar" replace />
+            ) : (
+              <div className="min-h-screen w-full flex items-center justify-center bg-gray-100 px-4 py-8">
+                <SignUp
+                  onBackToLogin={() => {
+                    window.history.back();
+                  }}
+                />
+              </div>
+            )
+          }
+        />
+
+        {/* PROTECTED APP */}
+        <Route
+          path="/"
+          element={
+            currentUser ? (
+              <MainApp
+                currentUser={currentUser}
+                onSignOut={async () => {
+                  await supabase.auth.signOut();
+                  setCurrentUser(null);
+                }}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        >
+          <Route
+            index
+            element={<Navigate to="/calendar" replace />}
+          />
+
+          <Route
+            path="calendar"
+            element={
+              <CalendarView
+                currentUser={currentUser}
+              />
+            }
+          />
+
+          <Route
+            path="todos"
+            element={
+              <TodoView
+                currentUser={currentUser}
+              />
+            }
+          />
+
+          <Route
+            path="team"
+            element={
+              <TeamMembers
+                currentUser={currentUser}
+              />
+            }
+          />
+        </Route>
+
+        {/* FALLBACK */}
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to={currentUser ? "/calendar" : "/login"}
+              replace
+            />
+          }
+        />
+
+      </Routes>
+    </BrowserRouter>
   );
 }
 
