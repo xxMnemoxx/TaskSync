@@ -1,325 +1,746 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/react/daygrid';
+import timeGridPlugin from '@fullcalendar/react/timegrid';
+import listPlugin from '@fullcalendar/react/list';
+import interactionPlugin from '@fullcalendar/react/interaction';
+import themePlugin from '@fullcalendar/react/themes/classic';
+
+import '@fullcalendar/react/skeleton.css';
+import '@fullcalendar/react/themes/classic/theme.css';
+
+import { supabase } from '../data/supabaseClient';
 
 import {
   fetchTeamEvents,
   fetchMyTodos,
+  addEvent,
 } from '../data/storage';
 
-import { CAN_EDIT_ANY } from '../data/roles';
-import EventForm from './EventForm';
-
-function getMonthDays(year, month) {
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-
-  const days = [];
-
-  for (let d = 1; d <= lastDay.getDate(); d++) {
-    days.push(new Date(year, month, d));
-  }
-
-  return {
-    days,
-    startWeekday: firstDay.getDay(),
-  };
-}
-
-function CalendarView({ currentUser, team = null, myRole = null }) {
-  const today = new Date();
-
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth());
-
+function CalendarView({ currentUser }) {
+  const [team, setTeam] = useState(null);
   const [events, setEvents] = useState([]);
-  const [personalTodos, setPersonalTodos] = useState([]);
 
-  const [filterProject, setFilterProject] = useState('all');
-  const [filterAssignee, setFilterAssignee] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const [showForm, setShowForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
 
-  // Load calendar data
-  useEffect(() => {
-    refreshEvents();
-  }, [team?.id, currentUser.id]);
+  const [title, setTitle] = useState('');
+  const [project, setProject] = useState('');
+  const [status, setStatus] = useState('To Do');
+  const [isPersonal, setIsPersonal] = useState(true);
+
+  const [saving, setSaving] = useState(false);
+
+  // --------------------------------------------------
+  // Load user's team
+  // --------------------------------------------------
+
+  async function loadUserTeam() {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('team_id, role')
+      .eq('user_id', currentUser.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    setTeam(data || null);
+
+    return data || null;
+  }
+
+  // --------------------------------------------------
+  // Load events
+  // --------------------------------------------------
 
   async function refreshEvents() {
+    if (!currentUser?.id) return;
+
+    setLoading(true);
+    setError('');
+
     try {
-      // Always load personal todos
-      const todos = await fetchMyTodos(
+      const userTeam = await loadUserTeam();
+
+      // Personal events work even without a team.
+      const personalTodos = await fetchMyTodos(
         currentUser.id,
-        team?.id || null
+        null
       );
 
-      setPersonalTodos(todos);
+      let teamEvents = [];
 
-      // Only load team events if user has a team
-      if (team?.id) {
-        const teamEvents = await fetchTeamEvents(team.id);
-        setEvents(teamEvents);
-      } else {
-        setEvents([]);
+      if (userTeam?.team_id) {
+        teamEvents = await fetchTeamEvents(
+          userTeam.team_id
+        );
       }
-    } catch (error) {
-      console.error('Error loading calendar:', error);
+
+      setEvents([
+        ...teamEvents,
+        ...personalTodos,
+      ]);
+    } catch (err) {
+      console.error('Error loading calendar:', err);
+
+      setError(
+        err?.message ||
+          'Unable to load calendar events.'
+      );
+    } finally {
+      setLoading(false);
     }
   }
 
-  const { days, startWeekday } = getMonthDays(year, month);
+  useEffect(() => {
+    refreshEvents();
+  }, [currentUser?.id]);
 
-  // Combine team events and personal todos
-  const allEvents = [
-    ...events,
-    ...personalTodos,
-  ];
+  // --------------------------------------------------
+  // Convert Supabase events to FullCalendar events
+  // --------------------------------------------------
 
-  const filtered = allEvents.filter((event) => {
-    if (
-      filterProject !== 'all' &&
-      event.project !== filterProject
-    ) {
-      return false;
-    }
+  const calendarEvents = useMemo(() => {
+    return events.map((event) => {
+      const personal = event.is_personal === true;
 
-    if (
-      filterAssignee !== 'all' &&
-      event.assignee !== filterAssignee
-    ) {
-      return false;
-    }
+      return {
+        id: String(event.id),
 
-    if (
-      filterStatus !== 'all' &&
-      event.status !== filterStatus
-    ) {
-      return false;
-    }
+        title: personal
+          ? event.title
+          : event.title,
 
-    return true;
-  });
+        start: event.date,
 
-  const projects = [
-    ...new Set(
-      allEvents
-        .map((event) => event.project)
-        .filter(Boolean)
-    ),
-  ];
+        allDay: true,
 
-  function prevMonth() {
-    if (month === 0) {
-      setMonth(11);
-      setYear(year - 1);
-    } else {
-      setMonth(month - 1);
-    }
-  }
+        classNames: personal
+          ? [
+              'rounded-md',
+              'border-0',
+              'bg-emerald-500',
+              'text-white',
+              'shadow-sm',
+              'hover:bg-emerald-600',
+            ]
+          : [
+              'rounded-md',
+              'border-0',
+              'bg-blue-600',
+              'text-white',
+              'shadow-sm',
+              'hover:bg-blue-700',
+            ],
 
-  function nextMonth() {
-    if (month === 11) {
-      setMonth(0);
-      setYear(year + 1);
-    } else {
-      setMonth(month + 1);
-    }
-  }
+        extendedProps: {
+          originalEvent: event,
+          isPersonal: personal,
+          project: event.project,
+          status: event.status,
+          assignee: event.assignee,
+          teamId: event.team_id,
+        },
+      };
+    });
+  }, [events]);
 
-  function canEdit(event) {
-    return (
-      CAN_EDIT_ANY.includes(myRole) ||
-      event.assignee === currentUser.id
-    );
-  }
+  // --------------------------------------------------
+  // Create event modal
+  // --------------------------------------------------
 
-  function openNewEvent(date) {
-    // Everyone can create a personal todo.
+  function openCreateForm(date) {
     setSelectedDate(date);
+
+    setTitle('');
+    setProject('');
+    setStatus('To Do');
+
+    // Personal is the default.
+    setIsPersonal(true);
+
     setShowForm(true);
   }
 
-  return (
-    <div className="calendar-view">
+  // --------------------------------------------------
+  // Save event
+  // --------------------------------------------------
 
-      {/* Calendar Controls */}
-      <div className="calendar-controls">
-        <button onClick={prevMonth}>
-          ◀
-        </button>
+  async function handleCreateEvent(e) {
+    e.preventDefault();
 
-        <h3>
-          {new Date(year, month).toLocaleString(
-            'default',
-            {
-              month: 'long',
-              year: 'numeric',
-            }
-          )}
-        </h3>
+    if (!title.trim() || !selectedDate) {
+      return;
+    }
 
-        <button onClick={nextMonth}>
-          ▶
-        </button>
+    setSaving(true);
+    setError('');
+
+    try {
+      await addEvent({
+        title: title.trim(),
+
+        date: selectedDate,
+
+        team_id: isPersonal
+          ? null
+          : team?.team_id || null,
+
+        assignee: currentUser.id,
+
+        is_personal: isPersonal,
+
+        project: project.trim() || null,
+
+        status,
+      });
+
+      setShowForm(false);
+
+      await refreshEvents();
+    } catch (err) {
+      console.error('Error creating event:', err);
+
+      setError(
+        err?.message ||
+          'Unable to create event.'
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // --------------------------------------------------
+  // Event click
+  // --------------------------------------------------
+
+  function handleEventClick(info) {
+    const original =
+      info.event.extendedProps.originalEvent;
+
+    if (!original) return;
+
+    const type = original.is_personal
+      ? 'Personal To-Do'
+      : 'Team Event';
+
+    const projectText = original.project
+      ? `\nProject: ${original.project}`
+      : '';
+
+    const statusText = original.status
+      ? `\nStatus: ${original.status}`
+      : '';
+
+    window.alert(
+      `${type}\n\n${original.title}${projectText}${statusText}`
+    );
+  }
+
+  // --------------------------------------------------
+  // Loading
+  // --------------------------------------------------
+
+  if (loading) {
+    return (
+      <div className="flex min-h-full items-center justify-center bg-gray-50 p-4 md:p-6">
+        <div className="rounded-xl bg-white px-8 py-10 text-sm text-gray-500 shadow-sm">
+          Loading calendar...
+        </div>
       </div>
+    );
+  }
 
+  // --------------------------------------------------
+  // UI
+  // --------------------------------------------------
 
-      {/* Filters */}
-      <div className="filters">
+  return (
+    <div className="min-h-full bg-gray-50 p-3 sm:p-4 md:p-6">
 
-        <select
-          value={filterProject}
-          onChange={(e) =>
-            setFilterProject(e.target.value)
-          }
-        >
-          <option value="all">
-            All Projects
-          </option>
+      <div className="mx-auto w-full max-w-7xl">
 
-          {projects.map((project) => (
-            <option
-              key={project}
-              value={project}
-            >
-              {project}
-            </option>
-          ))}
-        </select>
+        {/* Header */}
+        <div className="mb-4 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
 
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+              Calendar
+            </h1>
 
-        {team && (
-          <select
-            value={filterAssignee}
-            onChange={(e) =>
-              setFilterAssignee(e.target.value)
+            <p className="mt-1 text-sm text-gray-500">
+              {team
+                ? 'Your team events and personal to-dos'
+                : 'Your personal to-dos'}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              openCreateForm(
+                new Date()
+                  .toISOString()
+                  .slice(0, 10)
+              )
             }
+            className="
+              inline-flex
+              w-full
+              items-center
+              justify-center
+              rounded-lg
+              bg-blue-600
+              px-4
+              py-2.5
+              text-sm
+              font-semibold
+              text-white
+              shadow-sm
+              transition
+              hover:bg-blue-700
+              focus:outline-none
+              focus:ring-2
+              focus:ring-blue-500
+              focus:ring-offset-2
+              sm:w-auto
+            "
           >
-            <option value="all">
-              All Members
-            </option>
+            + Add To-Do
+          </button>
+        </div>
 
-            {team.members.map((member) => (
-              <option
-                key={member.userId}
-                value={member.userId}
-              >
-                {member.name}
-              </option>
-            ))}
-          </select>
+        {/* Error */}
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
         )}
 
+        {/* Calendar card */}
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
 
-        <select
-          value={filterStatus}
-          onChange={(e) =>
-            setFilterStatus(e.target.value)
-          }
-        >
-          <option value="all">
-            All Statuses
-          </option>
+          <div className="overflow-x-auto p-2 sm:p-4 md:p-5">
 
-          <option>To Do</option>
-          <option>In Progress</option>
-          <option>Done</option>
-        </select>
+            <div className="min-w-[650px] md:min-w-0">
 
-      </div>
+              <FullCalendar
+                plugins={[
+                  themePlugin,
+                  dayGridPlugin,
+                  timeGridPlugin,
+                  listPlugin,
+                  interactionPlugin,
+                ]}
 
+                initialView="dayGridMonth"
 
-      {/* Calendar */}
-      <div className="grid">
+                headerToolbar={{
+                  left: 'prev,next today',
+                  center: 'title',
+                  right:
+                    'dayGridMonth,timeGridWeek,listWeek',
+                }}
 
-        {[
-          'Sun',
-          'Mon',
-          'Tue',
-          'Wed',
-          'Thu',
-          'Fri',
-          'Sat',
-        ].map((day) => (
-          <div
-            key={day}
-            className="grid-header"
-          >
-            {day}
-          </div>
-        ))}
+                buttonText={{
+                  today: 'Today',
+                  month: 'Month',
+                  week: 'Week',
+                  list: 'List',
+                }}
 
+                events={calendarEvents}
 
-        {Array(startWeekday)
-          .fill(null)
-          .map((_, index) => (
-            <div
-              key={'empty' + index}
-              className="cell empty"
-            />
-          ))}
+                height="auto"
 
+                dayMaxEvents={3}
 
-        {days.map((day) => {
-          const dateStr = day
-            .toISOString()
-            .slice(0, 10);
+                selectable={true}
 
-          const dayEvents = filtered.filter(
-            (event) => event.date === dateStr
-          );
+                editable={false}
 
-          return (
-            <div
-              key={dateStr}
-              className="cell"
-              onClick={() =>
-                openNewEvent(dateStr)
-              }
-            >
-              <span className="day-number">
-                {day.getDate()}
-              </span>
+                dateClick={(info) => {
+                  openCreateForm(info.dateStr);
+                }}
 
+                eventClick={handleEventClick}
 
-              {dayEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className={`event-chip ${
-                    event.is_personal
-                      ? 'personal-event'
-                      : `status-${event.status
-                          ?.replace(' ', '-')
-                          .toLowerCase()}`
-                  }`}
-                >
-                  {event.title}
-                </div>
-              ))}
+                eventDisplay="block"
+
+                dayCellClass="border-gray-200"
+
+                dayHeaderClass="
+                  bg-gray-50
+                  text-xs
+                  font-semibold
+                  uppercase
+                  tracking-wide
+                  text-gray-500
+                "
+
+                dayCellContent={(arg) => (
+                  <span
+                    className={`
+                      inline-flex
+                      h-7
+                      min-w-7
+                      items-center
+                      justify-center
+                      rounded-full
+                      px-1
+                      text-sm
+                      font-medium
+                      ${
+                        arg.isToday
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-700'
+                      }
+                    `}
+                  >
+                    {arg.dayNumberText}
+                  </span>
+                )}
+
+                eventClassNames={(arg) => {
+                  if (
+                    arg.event.extendedProps
+                      .isPersonal
+                  ) {
+                    return [
+                      'rounded-md',
+                      'border-0',
+                      'bg-emerald-500',
+                      'text-white',
+                      'px-1',
+                      'py-0.5',
+                      'text-xs',
+                      'font-medium',
+                    ];
+                  }
+
+                  return [
+                    'rounded-md',
+                    'border-0',
+                    'bg-blue-600',
+                    'text-white',
+                    'px-1',
+                    'py-0.5',
+                    'text-xs',
+                    'font-medium',
+                  ];
+                }}
+              />
 
             </div>
-          );
-        })}
+          </div>
+        </div>
 
+        {/* Legend */}
+        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 px-1 text-sm text-gray-600">
+
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+            <span>Team Event</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            <span>Personal To-Do</span>
+          </div>
+
+        </div>
       </div>
 
+      {/* =====================================================
+          MODAL
+          ===================================================== */}
 
-      {/* Add Event / Todo Form */}
       {showForm && (
-        <EventForm
-          date={selectedDate}
-          team={team}
-          currentUser={currentUser}
-          onClose={() =>
-            setShowForm(false)
-          }
-          onSaved={() => {
-            setShowForm(false);
-            refreshEvents();
+        <div
+          className="
+            fixed
+            inset-0
+            z-50
+            flex
+            items-center
+            justify-center
+            overflow-y-auto
+            bg-gray-900/40
+            p-4
+            backdrop-blur-sm
+          "
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowForm(false);
+            }
           }}
-        />
-      )}
+        >
+          <div className="my-auto w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
 
+            <div className="mb-5 flex items-start justify-between">
+
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Add Calendar Item
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  {selectedDate}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowForm(false)
+                }
+                className="
+                  rounded-lg
+                  p-2
+                  text-gray-400
+                  transition
+                  hover:bg-gray-100
+                  hover:text-gray-700
+                "
+              >
+                ✕
+              </button>
+
+            </div>
+
+            <form
+              onSubmit={handleCreateEvent}
+              className="space-y-4"
+            >
+
+              {/* Title */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Title
+                </label>
+
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) =>
+                    setTitle(e.target.value)
+                  }
+                  placeholder="What do you need to do?"
+                  autoFocus
+                  className="
+                    w-full
+                    rounded-lg
+                    border
+                    border-gray-300
+                    bg-white
+                    px-3
+                    py-2.5
+                    text-sm
+                    text-gray-900
+                    outline-none
+                    transition
+                    placeholder:text-gray-400
+                    focus:border-blue-500
+                    focus:ring-2
+                    focus:ring-blue-100
+                  "
+                />
+              </div>
+
+              {/* Type */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Type
+                </label>
+
+                <div className="grid grid-cols-2 gap-2">
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setIsPersonal(true)
+                    }
+                    className={`
+                      rounded-lg
+                      border
+                      px-3
+                      py-2.5
+                      text-sm
+                      font-medium
+                      transition
+                      ${
+                        isPersonal
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                          : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }
+                    `}
+                  >
+                    ✓ Personal
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!team}
+                    onClick={() =>
+                      setIsPersonal(false)
+                    }
+                    className={`
+                      rounded-lg
+                      border
+                      px-3
+                      py-2.5
+                      text-sm
+                      font-medium
+                      transition
+                      ${
+                        !team
+                          ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300'
+                          : !isPersonal
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }
+                    `}
+                  >
+                    👥 Team
+                  </button>
+
+                </div>
+              </div>
+
+              {/* Project */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Project
+                  <span className="ml-1 font-normal text-gray-400">
+                    optional
+                  </span>
+                </label>
+
+                <input
+                  type="text"
+                  value={project}
+                  onChange={(e) =>
+                    setProject(e.target.value)
+                  }
+                  placeholder="Project name"
+                  className="
+                    w-full
+                    rounded-lg
+                    border
+                    border-gray-300
+                    px-3
+                    py-2.5
+                    text-sm
+                    outline-none
+                    focus:border-blue-500
+                    focus:ring-2
+                    focus:ring-blue-100
+                  "
+                />
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Status
+                </label>
+
+                <select
+                  value={status}
+                  onChange={(e) =>
+                    setStatus(e.target.value)
+                  }
+                  className="
+                    w-full
+                    rounded-lg
+                    border
+                    border-gray-300
+                    bg-white
+                    px-3
+                    py-2.5
+                    text-sm
+                    outline-none
+                    focus:border-blue-500
+                    focus:ring-2
+                    focus:ring-blue-100
+                  "
+                >
+                  <option value="To Do">
+                    To Do
+                  </option>
+
+                  <option value="In Progress">
+                    In Progress
+                  </option>
+
+                  <option value="Done">
+                    Done
+                  </option>
+                </select>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row">
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowForm(false)
+                  }
+                  className="
+                    flex-1
+                    rounded-lg
+                    border
+                    border-gray-300
+                    px-4
+                    py-2.5
+                    text-sm
+                    font-medium
+                    text-gray-700
+                    hover:bg-gray-50
+                  "
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    saving ||
+                    !title.trim()
+                  }
+                  className="
+                    flex-1
+                    rounded-lg
+                    bg-blue-600
+                    px-4
+                    py-2.5
+                    text-sm
+                    font-semibold
+                    text-white
+                    hover:bg-blue-700
+                    disabled:cursor-not-allowed
+                    disabled:opacity-50
+                  "
+                >
+                  {saving
+                    ? 'Saving...'
+                    : 'Add Event'}
+                </button>
+
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

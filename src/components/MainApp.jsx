@@ -1,156 +1,511 @@
-import { NavLink, Outlet } from 'react-router-dom';
 import { useState } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
 
 function MainApp({ currentUser, onSignOut }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
 
   async function handleSignOut() {
     await onSignOut();
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex">
+  const navItem = ({ isActive }) => `
+    group flex min-h-[44px] items-center rounded-xl
+    text-sm font-medium transition-all duration-200
+    ${
+      isActive
+        ? 'bg-blue-50 text-blue-700'
+        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+    }
+    ${
+      desktopCollapsed
+        ? 'justify-center px-2'
+        : 'gap-3 px-3'
+    }
+  `;
 
-      {/* SIDEBAR */}
+  return (
+    <div className="min-h-screen bg-gray-50">
+
+      {/* =====================================================
+          MOBILE HEADER
+          ===================================================== */}
+      <header
+        className="
+          flex h-16 items-center
+          border-b border-gray-700
+          bg-slate-800
+          px-4
+          lg:hidden
+        "
+      >
+        <button
+          type="button"
+          onClick={() => setMobileSidebarOpen(true)}
+          aria-label="Open navigation"
+          className="
+            flex h-10 w-10 shrink-0
+            items-center justify-center
+            rounded-lg
+            text-white
+            transition
+            hover:bg-white/10
+            active:bg-white/20
+          "
+        >
+          <svg
+            className="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path
+              strokeLinecap="round"
+              d="M4 6h16"
+            />
+            <path
+              strokeLinecap="round"
+              d="M4 12h16"
+            />
+            <path
+              strokeLinecap="round"
+              d="M4 18h16"
+            />
+          </svg>
+        </button>
+
+        <span className="ml-3 text-lg font-bold text-white">
+          TaskSync
+        </span>
+      </header>
+
+      {/* =====================================================
+          MOBILE OVERLAY
+          ===================================================== */}
+      {mobileSidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={() => setMobileSidebarOpen(false)}
+          className="
+            fixed inset-0 z-40
+            bg-gray-950/40
+            lg:hidden
+          "
+        />
+      )}
+
+      {/* =====================================================
+          SIDEBAR
+          ===================================================== */}
       <aside
         className={`
-          bg-white border-r border-gray-200
-          transition-all duration-300
+          fixed inset-y-0 left-0 z-50
           flex flex-col
-          ${sidebarOpen ? 'w-64' : 'w-20'}
+          border-r border-gray-200
+          bg-white
+          shadow-lg
+          transition-all duration-300 ease-in-out
+
+          ${
+            mobileSidebarOpen
+              ? 'translate-x-0'
+              : '-translate-x-full'
+          }
+
+          lg:translate-x-0
+
+          ${
+            desktopCollapsed
+              ? 'lg:w-[72px]'
+              : 'lg:w-64'
+          }
         `}
       >
 
-        {/* HEADER */}
-        <div className="h-16 flex items-center justify-between px-4 border-b">
+        {/* =================================================
+            SIDEBAR HEADER
+            ================================================= */}
+        <div
+          className={`
+            flex h-16 shrink-0
+            items-center
+            border-b border-gray-200
 
-          {sidebarOpen && (
-            <h1 className="text-xl font-bold text-gray-800">
-              TaskSync
-            </h1>
+            ${
+              desktopCollapsed
+                ? 'justify-center px-2'
+                : 'justify-between px-4'
+            }
+          `}
+        >
+
+          {/* Expanded sidebar logo */}
+          {!desktopCollapsed && (
+            <div className="flex min-w-0 items-center gap-3">
+              <div
+                className="
+                  flex h-9 w-9 shrink-0
+                  items-center justify-center
+                  rounded-xl
+                  bg-blue-600
+                  text-xs font-bold text-white
+                  shadow-sm
+                "
+              >
+                TS
+              </div>
+
+              <span className="truncate text-lg font-bold text-gray-900">
+                TaskSync
+              </span>
+            </div>
           )}
 
+          {/* =================================================
+              DESKTOP MENU BUTTON
+              ================================================= */}
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg hover:bg-gray-100"
+            type="button"
+            onClick={() =>
+              setDesktopCollapsed((value) => !value)
+            }
+            aria-label={
+              desktopCollapsed
+                ? 'Expand sidebar'
+                : 'Collapse sidebar'
+            }
+            className={`
+              hidden
+              h-9 w-9
+              shrink-0
+              items-center
+              justify-center
+              rounded-lg
+              text-gray-500
+              transition
+              hover:bg-gray-100
+              hover:text-gray-900
+              focus:outline-none
+
+              ${
+                desktopCollapsed
+                  ? 'lg:flex'
+                  : 'lg:flex'
+              }
+            `}
           >
-            {sidebarOpen ? '◀' : '▶'}
+            <svg
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                strokeLinecap="round"
+                d="M4 6h16"
+              />
+              <path
+                strokeLinecap="round"
+                d="M4 12h16"
+              />
+              <path
+                strokeLinecap="round"
+                d="M4 18h16"
+              />
+            </svg>
           </button>
 
+          {/* =================================================
+              MOBILE CLOSE BUTTON
+              ================================================= */}
+          <button
+            type="button"
+            onClick={() =>
+              setMobileSidebarOpen(false)
+            }
+            aria-label="Close sidebar"
+            className="
+              flex h-9 w-9
+              shrink-0
+              items-center
+              justify-center
+              rounded-lg
+              text-gray-500
+              transition
+              hover:bg-gray-100
+              hover:text-gray-900
+              lg:hidden
+            "
+          >
+            <svg
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 6l12 12M18 6L6 18"
+              />
+            </svg>
+          </button>
         </div>
 
-        {/* USER */}
-        {sidebarOpen && (
-          <div className="px-4 py-4 border-b">
-            <p className="text-xs text-gray-500">
-              Signed in as
-            </p>
+        {/* =================================================
+            USER
+            ================================================= */}
+        <div
+          className={`
+            border-b border-gray-100
+            ${
+              desktopCollapsed
+                ? 'flex justify-center px-2 py-4'
+                : 'px-4 py-4'
+            }
+          `}
+        >
+          {desktopCollapsed ? (
+            <div
+              title={currentUser?.email || 'User'}
+              className="
+                flex h-9 w-9
+                items-center justify-center
+                rounded-full
+                bg-blue-50
+                text-sm font-semibold
+                text-blue-700
+              "
+            >
+              {currentUser?.email
+                ?.charAt(0)
+                ?.toUpperCase() || 'U'}
+            </div>
+          ) : (
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                Signed in as
+              </p>
 
-            <p className="text-sm font-medium text-gray-800 truncate">
-              {currentUser?.email}
-            </p>
-          </div>
-        )}
+              <p className="mt-1 truncate text-sm font-semibold text-gray-800">
+                {currentUser?.email || 'User'}
+              </p>
+            </div>
+          )}
+        </div>
 
-        {/* NAVIGATION */}
-        <nav className="flex-1 p-3 space-y-2">
+        {/* =================================================
+            NAVIGATION
+            ================================================= */}
+        <nav className="flex-1 space-y-1.5 p-3">
 
           <NavLink
             to="/calendar"
-            className={({ isActive }) =>
-              `
-              flex items-center gap-3 px-3 py-3 rounded-lg
-              transition
-              ${
-                isActive
-                  ? 'bg-blue-100 text-blue-700 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }
-              `
+            onClick={() =>
+              setMobileSidebarOpen(false)
+            }
+            className={navItem}
+            title={
+              desktopCollapsed
+                ? 'Calendar'
+                : undefined
             }
           >
-            <span>📅</span>
+            <svg
+              className="h-5 w-5 shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <rect
+                x="3"
+                y="4"
+                width="18"
+                height="17"
+                rx="2"
+              />
+              <path d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
 
-            {sidebarOpen && (
+            {!desktopCollapsed && (
               <span>Calendar</span>
             )}
           </NavLink>
 
           <NavLink
             to="/todos"
-            className={({ isActive }) =>
-              `
-              flex items-center gap-3 px-3 py-3 rounded-lg
-              transition
-              ${
-                isActive
-                  ? 'bg-blue-100 text-blue-700 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }
-              `
+            onClick={() =>
+              setMobileSidebarOpen(false)
+            }
+            className={navItem}
+            title={
+              desktopCollapsed
+                ? 'My To-Dos'
+                : undefined
             }
           >
-            <span>✓</span>
+            <svg
+              className="h-5 w-5 shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 11l3 3L20 6"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 6h.01M4 12h.01M4 18h.01"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 6h2M8 18h12"
+              />
+            </svg>
 
-            {sidebarOpen && (
+            {!desktopCollapsed && (
               <span>My To-Dos</span>
             )}
           </NavLink>
 
           <NavLink
             to="/team"
-            className={({ isActive }) =>
-              `
-              flex items-center gap-3 px-3 py-3 rounded-lg
-              transition
-              ${
-                isActive
-                  ? 'bg-blue-100 text-blue-700 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }
-              `
+            onClick={() =>
+              setMobileSidebarOpen(false)
+            }
+            className={navItem}
+            title={
+              desktopCollapsed
+                ? 'Team'
+                : undefined
             }
           >
-            <span>👥</span>
+            <svg
+              className="h-5 w-5 shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"
+              />
+              <circle
+                cx="9"
+                cy="7"
+                r="4"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"
+              />
+            </svg>
 
-            {sidebarOpen && (
+            {!desktopCollapsed && (
               <span>Team</span>
             )}
           </NavLink>
-
         </nav>
 
-        {/* SIGN OUT */}
-        <div className="p-3 border-t">
-
+        {/* =================================================
+            SIGN OUT
+            ================================================= */}
+        <div
+          className={`
+            border-t border-gray-200
+            p-3
+            ${
+              desktopCollapsed
+                ? 'flex justify-center'
+                : ''
+            }
+          `}
+        >
           <button
+            type="button"
             onClick={handleSignOut}
-            className="
-              w-full flex items-center gap-3
-              px-3 py-3 rounded-lg
+            title={
+              desktopCollapsed
+                ? 'Sign Out'
+                : undefined
+            }
+            className={`
+              flex min-h-[42px]
+              items-center
+              rounded-xl
+              text-sm font-medium
               text-red-600
-              hover:bg-red-50
               transition
-            "
-          >
-            <span>↪</span>
+              hover:bg-red-50
 
-            {sidebarOpen && (
+              ${
+                desktopCollapsed
+                  ? 'h-10 w-10 justify-center'
+                  : 'w-full gap-3 px-3'
+              }
+            `}
+          >
+            <svg
+              className="h-5 w-5 shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M10 17l5-5-5-5"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 12H3"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 19V5a2 2 0 00-2-2h-6"
+              />
+            </svg>
+
+            {!desktopCollapsed && (
               <span>Sign Out</span>
             )}
           </button>
-
         </div>
-
       </aside>
 
-      {/* MAIN CONTENT */}
-      <main className="flex-1 min-w-0 overflow-auto">
-
+      {/* =====================================================
+          MAIN CONTENT
+          ===================================================== */}
+      <main
+        className={`
+          min-h-screen
+          transition-[padding]
+          duration-300
+          ${
+            desktopCollapsed
+              ? 'lg:pl-[72px]'
+              : 'lg:pl-64'
+          }
+        `}
+      >
         <Outlet />
-
       </main>
-
     </div>
   );
 }
