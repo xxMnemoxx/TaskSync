@@ -322,7 +322,7 @@ function CalendarView({ currentUser }) {
 
           <div className="overflow-x-auto p-2 sm:p-4 md:p-5">
 
-            <div className="min-w-[650px] md:min-w-0">
+            <div className="min-w-162.5 md:min-w-0">
 
               <FullCalendar
                 plugins={[

@@ -118,7 +118,7 @@ function MainApp({ currentUser, onSignOut }) {
 
           ${
             desktopCollapsed
-              ? 'lg:w-[72px]'
+              ? 'lg:w-18'
               : 'lg:w-64'
           }
         `}
@@ -443,7 +443,7 @@ function MainApp({ currentUser, onSignOut }) {
                 : undefined
             }
             className={`
-              flex min-h-[42px]
+              flex min-h-10.5
               items-center
               rounded-xl
               text-sm font-medium
@@ -499,7 +499,7 @@ function MainApp({ currentUser, onSignOut }) {
           duration-300
           ${
             desktopCollapsed
-              ? 'lg:pl-[72px]'
+              ? 'lg:pl-18'
               : 'lg:pl-64'
           }
         `}
