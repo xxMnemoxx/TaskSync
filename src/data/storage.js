@@ -5,12 +5,12 @@ function generateCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-
 // =====================================================
 // TEAMS
 // =====================================================
 
 export async function createTeam(name, currentUser) {
+  // 1. Insert into 'teams' using 'code'
   const { data: team, error } = await supabase
     .from('teams')
     .insert({
@@ -22,6 +22,7 @@ export async function createTeam(name, currentUser) {
 
   if (error) throw error;
 
+  // 2. Insert creator into 'team_members' matching your schema fields
   const member = {
     team_id: team.id,
     user_id: currentUser.id,
@@ -47,18 +48,21 @@ export async function createTeam(name, currentUser) {
   };
 }
 
-
 export async function joinTeamByCode(code, currentUser) {
+  const formattedCode = code.trim().toUpperCase();
+
+  // 1. Find team by 'code'
   const { data: team, error } = await supabase
     .from('teams')
     .select('*')
-    .eq('code', code.trim().toUpperCase())
+    .eq('code', formattedCode)
     .single();
 
   if (error || !team) {
     throw new Error('No team found with that code.');
   }
 
+  // 2. Check if already a member
   const { data: existing } = await supabase
     .from('team_members')
     .select('*')
@@ -79,6 +83,7 @@ export async function joinTeamByCode(code, currentUser) {
     if (insertError) throw insertError;
   }
 
+  // 3. Fetch members directly from 'team_members'
   const { data: members, error: membersError } = await supabase
     .from('team_members')
     .select('*')
@@ -96,7 +101,6 @@ export async function joinTeamByCode(code, currentUser) {
   };
 }
 
-
 export async function updateMemberRole(teamId, userId, role) {
   const { error } = await supabase
     .from('team_members')
@@ -106,7 +110,6 @@ export async function updateMemberRole(teamId, userId, role) {
 
   if (error) throw error;
 }
-
 
 // =====================================================
 // EVENTS / TO-DOS
@@ -119,15 +122,17 @@ export async function fetchTeamEvents(teamId) {
     .from('events')
     .select('*')
     .eq('team_id', teamId)
-    .eq('is_personal', false);
+    .eq('is_personal', false)
+    .order('date', { ascending: true });
 
   if (error) throw error;
 
   return data || [];
 }
 
-
 export async function fetchMyTodos(userId, teamId = null) {
+  if (!userId) return [];
+
   let query = supabase
     .from('events')
     .select('*')
@@ -140,18 +145,25 @@ export async function fetchMyTodos(userId, teamId = null) {
     query = query.is('team_id', null);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await query.order('date', { ascending: true });
 
   if (error) throw error;
 
   return data || [];
 }
 
+export async function addEvent(eventData) {
+  const { data: { user } } = await supabase.auth.getUser();
 
-export async function addEvent(event) {
+  // Ensures created_by is assigned if not passed explicitly
+  const payload = {
+    ...eventData,
+    created_by: eventData.created_by || user?.id,
+  };
+
   const { data, error } = await supabase
     .from('events')
-    .insert(event)
+    .insert(payload)
     .select()
     .single();
 
@@ -159,7 +171,6 @@ export async function addEvent(event) {
 
   return data;
 }
-
 
 export async function updateEventStatus(id, status) {
   const { error } = await supabase
@@ -171,9 +182,10 @@ export async function updateEventStatus(id, status) {
 }
 
 export async function deleteEvent(id) {
-  const { error } = await supabase 
-    .from('events') 
-    .delete() 
-    .eq('id', id); 
-  if (error) throw error; 
+  const { error } = await supabase
+    .from('events')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
 }
