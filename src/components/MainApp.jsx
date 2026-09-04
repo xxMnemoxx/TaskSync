@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 function MainApp({ currentUser, onSignOut }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+
+  const location = useLocation();
 
   async function handleSignOut() {
     await onSignOut();
@@ -27,9 +29,7 @@ function MainApp({ currentUser, onSignOut }) {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* =====================================================
-          MOBILE HEADER
-          ===================================================== */}
+      {/* Mobile mode header */}
       <header
         className="
           flex h-16 items-center
@@ -80,9 +80,7 @@ function MainApp({ currentUser, onSignOut }) {
         </span>
       </header>
 
-      {/* =====================================================
-          MOBILE OVERLAY
-          ===================================================== */}
+      {/* Mobile Overlay */}
       {mobileSidebarOpen && (
         <button
           type="button"
@@ -96,9 +94,7 @@ function MainApp({ currentUser, onSignOut }) {
         />
       )}
 
-      {/* =====================================================
-          SIDEBAR
-          ===================================================== */}
+      {/* Sidebar */}
       <aside
         className={`
           fixed inset-y-0 left-0 z-50
@@ -124,9 +120,7 @@ function MainApp({ currentUser, onSignOut }) {
         `}
       >
 
-        {/* =================================================
-            SIDEBAR HEADER
-            ================================================= */}
+        {/* Sidebar header */}
         <div
           className={`
             flex h-16 shrink-0
@@ -163,9 +157,7 @@ function MainApp({ currentUser, onSignOut }) {
             </div>
           )}
 
-          {/* =================================================
-              DESKTOP MENU BUTTON
-              ================================================= */}
+          {/* Menu button in desktop mode */}
           <button
             type="button"
             onClick={() =>
@@ -218,9 +210,7 @@ function MainApp({ currentUser, onSignOut }) {
             </svg>
           </button>
 
-          {/* =================================================
-              MOBILE CLOSE BUTTON
-              ================================================= */}
+          {/* Close button in mobile mode */}
           <button
             type="button"
             onClick={() =>
@@ -256,9 +246,7 @@ function MainApp({ currentUser, onSignOut }) {
           </button>
         </div>
 
-        {/* =================================================
-            USER
-            ================================================= */}
+        {/* {User */}
         <div
           className={`
             border-b border-gray-100
@@ -298,9 +286,7 @@ function MainApp({ currentUser, onSignOut }) {
           )}
         </div>
 
-        {/* =================================================
-            NAVIGATION
-            ================================================= */}
+        {/* Navigation */}
         <nav className="flex-1 space-y-1.5 p-3">
 
           <NavLink
@@ -420,9 +406,7 @@ function MainApp({ currentUser, onSignOut }) {
           </NavLink>
         </nav>
 
-        {/* =================================================
-            SIGN OUT
-            ================================================= */}
+        {/* Sign Out */}
         <div
           className={`
             border-t border-gray-200
@@ -489,9 +473,7 @@ function MainApp({ currentUser, onSignOut }) {
         </div>
       </aside>
 
-      {/* =====================================================
-          MAIN CONTENT
-          ===================================================== */}
+      {/* Main Content */}
       <main
         className={`
           min-h-screen
@@ -504,7 +486,7 @@ function MainApp({ currentUser, onSignOut }) {
           }
         `}
       >
-        <Outlet />
+        <Outlet key={location.key} context={{ currentUser }} />
       </main>
     </div>
   );

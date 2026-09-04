@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation} from 'react-dom';
 
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/react/daygrid';
@@ -19,6 +20,8 @@ import {
 } from '../data/storage';
 
 function CalendarView({ currentUser }) {
+  const location = useLocation();
+
   const [team, setTeam] = useState(null);
   const [events, setEvents] = useState([]);
 
@@ -35,10 +38,7 @@ function CalendarView({ currentUser }) {
 
   const [saving, setSaving] = useState(false);
 
-  // --------------------------------------------------
-  // Load user's team
-  // --------------------------------------------------
-
+  // load the user's team information from Supabase
   async function loadUserTeam() {
     const { data, error } = await supabase
       .from('team_members')
@@ -56,10 +56,7 @@ function CalendarView({ currentUser }) {
     return data || null;
   }
 
-  // --------------------------------------------------
-  // Load events
-  // --------------------------------------------------
-
+  //load events
   async function refreshEvents() {
     if (!currentUser?.id) return;
 
@@ -100,13 +97,15 @@ function CalendarView({ currentUser }) {
   }
 
   useEffect(() => {
-    refreshEvents();
-  }, [currentUser?.id]);
+    async function loadData() {
+      if (currentUser?.id) {
+        await refreshEvents();
+      }
+    }
+    loadData();
+  }, [location.pathname, currentUser?.id]);
 
-  // --------------------------------------------------
-  // Convert Supabase events to FullCalendar events
-  // --------------------------------------------------
-
+  //calendar events
   const calendarEvents = useMemo(() => {
     return events.map((event) => {
       const personal = event.is_personal === true;
@@ -152,10 +151,7 @@ function CalendarView({ currentUser }) {
     });
   }, [events]);
 
-  // --------------------------------------------------
-  // Create event modal
-  // --------------------------------------------------
-
+  //create event modal
   function openCreateForm(date) {
     setSelectedDate(date);
 
@@ -163,21 +159,17 @@ function CalendarView({ currentUser }) {
     setProject('');
     setStatus('To Do');
 
-    // Personal is the default.
     setIsPersonal(true);
 
     setShowForm(true);
   }
 
-  // --------------------------------------------------
-  // Save event
-  // --------------------------------------------------
-
+  //save event
   async function handleCreateEvent(e) {
   e.preventDefault();
   if (!title.trim() || !selectedDate) return;
 
-  // Role check for team events
+  //check roles for team events
   if (!isPersonal) {
     const userRole = team?.role;
     if (userRole === 'viewer') {
@@ -210,10 +202,6 @@ function CalendarView({ currentUser }) {
   }
 }
 
-  // --------------------------------------------------
-  // Event click
-  // --------------------------------------------------
-
   function handleEventClick(info) {
     const original =
       info.event.extendedProps.originalEvent;
@@ -237,10 +225,6 @@ function CalendarView({ currentUser }) {
     );
   }
 
-  // --------------------------------------------------
-  // Loading
-  // --------------------------------------------------
-
   if (loading) {
     return (
       <div className="flex min-h-full items-center justify-center bg-gray-50 p-4 md:p-6">
@@ -250,10 +234,6 @@ function CalendarView({ currentUser }) {
       </div>
     );
   }
-
-  // --------------------------------------------------
-  // UI
-  // --------------------------------------------------
 
   return (
     <div className="min-h-full bg-gray-50 p-3 sm:p-4 md:p-6">
@@ -435,7 +415,6 @@ function CalendarView({ currentUser }) {
           </div>
         </div>
 
-        {/* Legend */}
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 px-1 text-sm text-gray-600">
 
           <div className="flex items-center gap-2">
@@ -451,10 +430,7 @@ function CalendarView({ currentUser }) {
         </div>
       </div>
 
-      {/* =====================================================
-          MODAL
-          ===================================================== */}
-
+      {/* open event modal */}
       {showForm && (
         <div
           className="
@@ -513,7 +489,6 @@ function CalendarView({ currentUser }) {
               className="space-y-4"
             >
 
-              {/* Title */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                   Title
@@ -547,7 +522,6 @@ function CalendarView({ currentUser }) {
                 />
               </div>
 
-              {/* Type */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
                   Type
@@ -607,7 +581,6 @@ function CalendarView({ currentUser }) {
                 </div>
               </div>
 
-              {/* Project */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                   Project
@@ -639,7 +612,6 @@ function CalendarView({ currentUser }) {
                 />
               </div>
 
-              {/* Status */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                   Status
@@ -679,7 +651,6 @@ function CalendarView({ currentUser }) {
                 </select>
               </div>
 
-              {/* Actions */}
               <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row">
 
                 <button

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation} from 'react-dom';
 import {
   fetchMyTodos,
   addEvent,
@@ -7,6 +8,8 @@ import {
 } from '../data/storage';
 
 function TodoView({ currentUser }) {
+  const location = useLocation();
+
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -19,10 +22,7 @@ function TodoView({ currentUser }) {
   const [date, setDate] = useState('');
   const [priority, setPriority] = useState('normal');
 
-  // =====================================================
-  // LOAD TODOS
-  // =====================================================
-
+  // load to do
   async function loadTodos() {
     if (!currentUser?.id) {
       setLoading(false);
@@ -44,13 +44,15 @@ function TodoView({ currentUser }) {
   }
 
   useEffect(() => {
-    loadTodos();
-  }, [currentUser?.id]);
+      async function loadData() {
+        if (currentUser?.id) {
+          await refreshEvents();
+        }
+      }
+      loadData();
+    }, [location.pathname, currentUser?.id]);
 
-  // =====================================================
-  // ADD TODO
-  // =====================================================
-
+  // add todo
   async function handleAddTodo(e) {
     e.preventDefault();
 
@@ -86,10 +88,7 @@ function TodoView({ currentUser }) {
     }
   }
 
-  // =====================================================
-  // TOGGLE TODO
-  // =====================================================
-
+  // toggle todo
   async function handleToggle(todo) {
     const newStatus =
       todo.status === 'completed' ? 'pending' : 'completed';
@@ -114,10 +113,7 @@ function TodoView({ currentUser }) {
     }
   }
 
-  // =====================================================
-  // DELETE TODO
-  // =====================================================
-
+  // delete todo
   async function handleDelete(id) {
     try {
       setError('');
@@ -134,10 +130,6 @@ function TodoView({ currentUser }) {
       setError('Failed to delete the to-do.');
     }
   }
-
-  // =====================================================
-  // HELPERS
-  // =====================================================
 
   function formatDate(dateValue) {
     if (!dateValue) return null;
@@ -176,18 +168,11 @@ function TodoView({ currentUser }) {
     (todo) => todo.status !== 'completed'
   );
 
-  // =====================================================
-  // RENDER
-  // =====================================================
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
 
-        {/* =================================================
-            HEADER
-        ================================================= */}
-
+        {/* header */}
         <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
@@ -212,7 +197,7 @@ function TodoView({ currentUser }) {
             <button
               type="button"
               onClick={() => setShowAddForm(!showAddForm)}
-              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
             >
               <span className="mr-2 text-lg leading-none">
                 {showAddForm ? '×' : '+'}
@@ -224,10 +209,6 @@ function TodoView({ currentUser }) {
           </div>
         </div>
 
-        {/* =================================================
-            ERROR
-        ================================================= */}
-
         {error && (
           <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5 text-sm text-red-700">
             <span className="mt-0.5 shrink-0">⚠</span>
@@ -236,10 +217,7 @@ function TodoView({ currentUser }) {
           </div>
         )}
 
-        {/* =================================================
-            ADD FORM
-        ================================================= */}
-
+        {/* form for adding todo */}
         {showAddForm && (
           <form
             onSubmit={handleAddTodo}
@@ -257,8 +235,6 @@ function TodoView({ currentUser }) {
 
             <div className="space-y-5 p-5 sm:p-6">
 
-              {/* Title */}
-
               <div>
                 <label
                   htmlFor="todo-title"
@@ -274,11 +250,9 @@ function TodoView({ currentUser }) {
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="What needs to be done?"
                   required
-                  className="min-h-[46px] w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 hover:border-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                  className="min-h-11.5 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 hover:border-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
                 />
               </div>
-
-              {/* Description */}
 
               <div>
                 <label
@@ -301,8 +275,6 @@ function TodoView({ currentUser }) {
                 />
               </div>
 
-              {/* Date + Priority */}
-
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
 
                 <div>
@@ -318,7 +290,7 @@ function TodoView({ currentUser }) {
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="min-h-[46px] w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition hover:border-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                    className="min-h-11.5 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition hover:border-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
                   />
                 </div>
 
@@ -334,7 +306,7 @@ function TodoView({ currentUser }) {
                     id="todo-priority"
                     value={priority}
                     onChange={(e) => setPriority(e.target.value)}
-                    className="min-h-[46px] w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition hover:border-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                    className="min-h-11.5 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition hover:border-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
                   >
                     <option value="low">Low Priority</option>
                     <option value="normal">Normal Priority</option>
@@ -345,14 +317,12 @@ function TodoView({ currentUser }) {
               </div>
             </div>
 
-            {/* Form actions */}
-
             <div className="flex flex-col-reverse gap-3 border-t border-gray-100 bg-gray-50/50 p-5 sm:flex-row sm:justify-end sm:px-6">
 
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
-                className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 active:bg-gray-100"
+                className="min-h-11 rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 active:bg-gray-100"
               >
                 Cancel
               </button>
@@ -360,7 +330,7 @@ function TodoView({ currentUser }) {
               <button
                 type="submit"
                 disabled={saving || !title.trim()}
-                className="min-h-[44px] rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {saving ? 'Creating...' : 'Create To-Do'}
               </button>
@@ -368,10 +338,6 @@ function TodoView({ currentUser }) {
             </div>
           </form>
         )}
-
-        {/* =================================================
-            STATS
-        ================================================= */}
 
         {!loading && (
           <div className="mb-6 grid grid-cols-1 gap-3 min-[400px]:grid-cols-3">
@@ -396,8 +362,6 @@ function TodoView({ currentUser }) {
               </div>
             </div>
 
-            {/* Pending */}
-
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -415,8 +379,6 @@ function TodoView({ currentUser }) {
                 </div>
               </div>
             </div>
-
-            {/* Completed */}
 
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="flex items-center justify-between">
@@ -439,13 +401,7 @@ function TodoView({ currentUser }) {
           </div>
         )}
 
-        {/* =================================================
-            TASK LIST
-        ================================================= */}
-
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-
-          {/* List header */}
 
           <div className="flex flex-col gap-2 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
@@ -461,12 +417,8 @@ function TodoView({ currentUser }) {
             </div>
           </div>
 
-          {/* =================================================
-              LOADING
-          ================================================= */}
-
           {loading && (
-            <div className="flex min-h-[260px] items-center justify-center px-5 py-12">
+            <div className="flex min-h-65 items-center justify-center px-5 py-12">
               <div className="flex flex-col items-center text-center">
 
                 <div className="mb-4 h-8 w-8 animate-spin rounded-full border-[3px] border-gray-200 border-t-blue-600" />
@@ -483,12 +435,8 @@ function TodoView({ currentUser }) {
             </div>
           )}
 
-          {/* =================================================
-              EMPTY
-          ================================================= */}
-
           {!loading && todos.length === 0 && (
-            <div className="flex min-h-[320px] flex-col items-center justify-center px-5 py-14 text-center">
+            <div className="flex min-h-80 flex-col items-center justify-center px-5 py-14 text-center">
 
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-2xl text-blue-600">
                 ✓
@@ -506,17 +454,13 @@ function TodoView({ currentUser }) {
               <button
                 type="button"
                 onClick={() => setShowAddForm(true)}
-                className="mt-5 min-h-[42px] rounded-xl bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100"
+                className="mt-5 min-h-10.5 rounded-xl bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100"
               >
                 + Create a To-Do
               </button>
 
             </div>
           )}
-
-          {/* =================================================
-              TODO ITEMS
-          ================================================= */}
 
           {!loading && todos.length > 0 && (
             <div className="divide-y divide-gray-100">
@@ -533,8 +477,6 @@ function TodoView({ currentUser }) {
                         : 'hover:bg-gray-50'
                     }`}
                   >
-
-                    {/* Checkbox */}
 
                     <button
                       type="button"
@@ -557,14 +499,12 @@ function TodoView({ currentUser }) {
                       )}
                     </button>
 
-                    {/* Content */}
-
                     <div className="min-w-0 flex-1">
 
                       <div className="flex flex-wrap items-center gap-2">
 
                         <h3
-                          className={`break-words text-sm font-semibold leading-5 sm:text-[15px] ${
+                          className={`wrap-break-word text-sm font-semibold leading-5 sm:text-[15px] ${
                             completed
                               ? 'text-gray-400 line-through'
                               : 'text-gray-900'
@@ -572,8 +512,6 @@ function TodoView({ currentUser }) {
                         >
                           {todo.title}
                         </h3>
-
-                        {/* Priority */}
 
                         {todo.priority &&
                           todo.priority !== 'normal' && (
@@ -588,11 +526,9 @@ function TodoView({ currentUser }) {
 
                       </div>
 
-                      {/* Description */}
-
                       {todo.description && (
                         <p
-                          className={`mt-1.5 break-words text-sm leading-5 ${
+                          className={`mt-1.5 wrap-break-word text-sm leading-5 ${
                             completed
                               ? 'text-gray-400'
                               : 'text-gray-500'
@@ -601,8 +537,6 @@ function TodoView({ currentUser }) {
                           {todo.description}
                         </p>
                       )}
-
-                      {/* Date */}
 
                       {todo.date && (
                         <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-500">
