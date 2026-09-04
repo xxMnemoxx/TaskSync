@@ -174,48 +174,41 @@ function CalendarView({ currentUser }) {
   // --------------------------------------------------
 
   async function handleCreateEvent(e) {
-    e.preventDefault();
+  e.preventDefault();
+  if (!title.trim() || !selectedDate) return;
 
-    if (!title.trim() || !selectedDate) {
+  // Role check for team events
+  if (!isPersonal) {
+    const userRole = team?.role;
+    if (userRole === 'viewer') {
+      setError('Viewers cannot create team events.');
       return;
     }
-
-    setSaving(true);
-    setError('');
-
-    try {
-      await addEvent({
-        title: title.trim(),
-
-        date: selectedDate,
-
-        team_id: isPersonal
-          ? null
-          : team?.team_id || null,
-
-        assignee: currentUser.id,
-
-        is_personal: isPersonal,
-
-        project: project.trim() || null,
-
-        status,
-      });
-
-      setShowForm(false);
-
-      await refreshEvents();
-    } catch (err) {
-      console.error('Error creating event:', err);
-
-      setError(
-        err?.message ||
-          'Unable to create event.'
-      );
-    } finally {
-      setSaving(false);
-    }
   }
+
+  setSaving(true);
+  setError('');
+
+  try {
+    await addEvent({
+      title: title.trim(),
+      date: selectedDate,
+      team_id: isPersonal ? null : team?.team_id || null,
+      assignee: currentUser.id,
+      is_personal: isPersonal,
+      project: project.trim() || null,
+      status,
+      user_id: currentUser.id,
+    });
+
+    setShowForm(false);
+    await refreshEvents();
+  } catch (err) {
+    setError(err?.message || 'Unable to create event.');
+  } finally {
+    setSaving(false);
+  }
+}
 
   // --------------------------------------------------
   // Event click
