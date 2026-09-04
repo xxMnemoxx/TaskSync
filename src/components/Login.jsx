@@ -83,7 +83,7 @@ function Login({ onLogin, onSignUp  }) {
           {errors.email && ( <p className="text-xs text-red-500"> {errors.email} </p> )}
         </div>
         <div className="flex flex-col gap-2">
-          <label htmlFor="password" className="font-semibold text-sm text-grat-700">
+          <label htmlFor="password" className="font-semibold text-sm text-gray-700">
             Password
           </label>
           <input type="password" id="password" name="password" value={password} 
