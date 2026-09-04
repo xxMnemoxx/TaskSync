@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useNavigate
 } from 'react-router-dom';
 
 import { supabase } from './data/supabaseClient';
@@ -17,18 +18,21 @@ import TeamMembers from './components/TeamMembers';
 
 import './App.css';
 
+function SignUpWrapper() {
+  const navigate = useNavigate();
+  return <SignUp onBackToLogin={() => navigate('/login')} />;
+}
+
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       setCurrentUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setCurrentUser(session?.user ?? null);
       setLoading(false);
@@ -59,9 +63,7 @@ function App() {
               <Navigate to="/calendar" replace />
             ) : (
               <div className="min-h-screen w-full flex items-center justify-center bg-gray-100 px-4 py-8">
-                <Login
-                  onLogin={setCurrentUser}
-                />
+                <Login onLogin={setCurrentUser} />
               </div>
             )
           }
@@ -75,11 +77,7 @@ function App() {
               <Navigate to="/calendar" replace />
             ) : (
               <div className="min-h-screen w-full flex items-center justify-center bg-gray-100 px-4 py-8">
-                <SignUp
-                  onBackToLogin={() => {
-                    window.history.back();
-                  }}
-                />
+                <SignUpWrapper />
               </div>
             )
           }
@@ -109,29 +107,17 @@ function App() {
 
           <Route
             path="calendar"
-            element={
-              <CalendarView
-                currentUser={currentUser}
-              />
-            }
+            element={<CalendarView currentUser={currentUser} />}
           />
 
           <Route
             path="todos"
-            element={
-              <TodoView
-                currentUser={currentUser}
-              />
-            }
+            element={<TodoView currentUser={currentUser} />}
           />
 
           <Route
             path="team"
-            element={
-              <TeamMembers
-                currentUser={currentUser}
-              />
-            }
+            element={<TeamMembers currentUser={currentUser} />}
           />
         </Route>
 

@@ -111,6 +111,32 @@ export async function updateMemberRole(teamId, userId, role) {
   if (error) throw error;
 }
 
+export async function fetchTeamMembers(userId) {
+  if (!userId) return [];
+
+  // Find user's team membership first
+  const { data: userTeams, error: userTeamError } = await supabase
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', userId);
+
+  if (userTeamError || !userTeams || userTeams.length === 0) {
+    return [];
+  }
+
+  const teamIds = userTeams.map((t) => t.team_id);
+
+  // Fetch all members associated with those teams
+  const { data, error } = await supabase
+    .from('team_members')
+    .select('id, name, role, user_id, team_id')
+    .in('team_id', teamIds);
+
+  if (error) throw error;
+
+  return data || [];
+}
+
 // =====================================================
 // EVENTS / TO-DOS
 // =====================================================
@@ -155,7 +181,6 @@ export async function fetchMyTodos(userId, teamId = null) {
 export async function addEvent(eventData) {
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Ensures created_by is assigned if not passed explicitly
   const payload = {
     ...eventData,
     created_by: eventData.created_by || user?.id,

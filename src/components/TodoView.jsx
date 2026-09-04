@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useLocation} from 'react-dom';
+import { useEffect, useState, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   fetchMyTodos,
   addEvent,
@@ -22,37 +22,44 @@ function TodoView({ currentUser }) {
   const [date, setDate] = useState('');
   const [priority, setPriority] = useState('normal');
 
-  // load to do
-  async function loadTodos() {
+  // Load todos with unmount protection
+  const loadTodos = useCallback(async () => {
     if (!currentUser?.id) {
       setLoading(false);
       return;
     }
 
+    let isMounted = true;
     try {
       setLoading(true);
       setError('');
 
       const data = await fetchMyTodos(currentUser.id);
-      setTodos(data);
-    } catch (err) {
-      console.error(err);
-      setError('Failed to load your to-dos.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-      async function loadData() {
-        if (currentUser?.id) {
-          await refreshEvents();
-        }
+      if (isMounted) {
+        setTodos(data || []);
       }
-      loadData();
-    }, [location.pathname, currentUser?.id]);
+    } catch (err) {
+      if (isMounted) {
+        console.error(err);
+        setError('Failed to load your to-dos.');
+      }
+    } finally {
+      if (isMounted) {
+        setLoading(false);
+      }
+    }
 
-  // add todo
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id]);
+
+  // Refreshes todos on route change / back navigation
+  useEffect(() => {
+    loadTodos();
+  }, [location.pathname, loadTodos]);
+
+  // Add todo
   async function handleAddTodo(e) {
     e.preventDefault();
 
@@ -88,7 +95,7 @@ function TodoView({ currentUser }) {
     }
   }
 
-  // toggle todo
+  // Toggle todo
   async function handleToggle(todo) {
     const newStatus =
       todo.status === 'completed' ? 'pending' : 'completed';
@@ -113,7 +120,7 @@ function TodoView({ currentUser }) {
     }
   }
 
-  // delete todo
+  // Delete todo
   async function handleDelete(id) {
     try {
       setError('');
@@ -172,7 +179,7 @@ function TodoView({ currentUser }) {
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
 
-        {/* header */}
+        {/* Header */}
         <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
@@ -212,12 +219,11 @@ function TodoView({ currentUser }) {
         {error && (
           <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5 text-sm text-red-700">
             <span className="mt-0.5 shrink-0">⚠</span>
-
             <p>{error}</p>
           </div>
         )}
 
-        {/* form for adding todo */}
+        {/* Form for adding todo */}
         {showAddForm && (
           <form
             onSubmit={handleAddTodo}
@@ -343,7 +349,6 @@ function TodoView({ currentUser }) {
           <div className="mb-6 grid grid-cols-1 gap-3 min-[400px]:grid-cols-3">
 
             {/* Total */}
-
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -548,7 +553,6 @@ function TodoView({ currentUser }) {
                     </div>
 
                     {/* Delete */}
-
                     <button
                       type="button"
                       onClick={() => handleDelete(todo.id)}
